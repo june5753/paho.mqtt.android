@@ -6,8 +6,8 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
 
     defaultConfig {
-        minSdkVersion 9
-        targetSdkVersion 24
+        minSdkVersion 16
+        targetSdkVersion 30
 
         testApplicationId "org.eclipse.paho.android.service.test"
     }
@@ -32,7 +32,7 @@ repositories {
 }
 
 configurations {
-   //androidTestCompile.exclude module: 'org.eclipse.paho.client.mqttv3'
+    //androidTestCompile.exclude module: 'org.eclipse.paho.client.mqttv3'
 }
 
 dependencies {
@@ -48,7 +48,11 @@ android.libraryVariants.all { variant ->
         source = variant.javaCompile.source
         ext.androidJar =
                 "${android.sdkDirectory}/platforms/${android.compileSdkVersion}/android.jar"
-        classpath = files(variant.javaCompile.classpath.files) + files(ext.androidJar)
+
+//        classpath = files(variant.javaCompile.classpath.files) + files(ext.androidJar)
+        doFirst {
+            classpath = files(variant.javaCompile.classpath.files) + files(ext.androidJar)
+        }
         options.links("http://docs.oracle.com/javase/7/docs/api/");
         options.links("http://d.android.com/reference/");
         exclude '**/BuildConfig.java'
@@ -84,7 +88,7 @@ task("generateLibraryJar", type: Jar) {
 }
 
 // Generate Javadoc
-task("generateJavaDocJar", type: Jar, dependsOn: (rootProject.ext.serviceVersion.endsWith('-SNAPSHOT') ? 'generatedebugJavadoc' : 'generatereleaseJavadoc')){
+task("generateJavaDocJar", type: Jar, dependsOn: (rootProject.ext.serviceVersion.endsWith('-SNAPSHOT') ? 'generatedebugJavadoc' : 'generatereleaseJavadoc')) {
     from("$buildDir/docs/javadoc")
     classifier = 'javadoc'
 }
@@ -118,11 +122,13 @@ publishing {
 }
 
 
-task debug << {
-    configurations.compile.each { println it}
+task debug {
+    doLast {
+        configurations.compile.each { println it }
+    }
 }
 // Required to bundle Java library Jar in AAR
-clean.doLast{
+clean.doLast {
     copyLibs.execute()
 }
 assemble.doLast {
