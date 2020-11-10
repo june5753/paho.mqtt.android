@@ -7,7 +7,7 @@ android {
     defaultConfig {
         applicationId "paho.mqtt.java.example"
         minSdkVersion 16
-        targetSdkVersion 24
+        targetSdkVersion 30
         versionCode 1
         versionName "1.0"
     }
@@ -32,18 +32,20 @@ repositories {
 
 dependencies {
     compile fileTree(dir: 'libs', excludes: ["org.eclipse.paho.client.mqttv3-${rootProject.ext.clientVersion}.jar"], include: '*.jar')
-    testCompile 'junit:junit:4.12'
+    testCompile 'junit:junit:4.13.1'
     compile "com.android.support:appcompat-v7:${rootProject.ext.supportLibVersion}"
     compile "com.android.support:design:${rootProject.ext.supportLibVersion}"
     compile "com.android.support:recyclerview-v7:${rootProject.ext.supportLibVersion}"
     compile "org.eclipse.paho:org.eclipse.paho.client.mqttv3:${rootProject.ext.clientVersion}"
-    compile (project(':org.eclipse.paho.android.service')){
+    compile(project(':org.eclipse.paho.android.service')) {
         //exclude module: "org.eclipse.paho.client.mqttv3"
-        transitive=true
+        transitive = true
     }
 }
 
 configurations.compile.exclude module: 'org.eclipse.paho.client.mqttv3'
-task debug << {
-    configurations.compile.each { println it}
+task debug {
+    doLast {
+        configurations.compile.each { println it }
+    }
 }
