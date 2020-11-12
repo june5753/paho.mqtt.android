@@ -23,14 +23,17 @@
         android:layout_height="wrap_content"
         android:text="清空日志" />
 
+    <TextView
+        android:id="@+id/tv_ClientId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        tools:text="当前Client ID:" />
+
     <TextClock
         android:id="@+id/tvClock"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:format12Hour="yyyy年MM月dd日HH:mm:ss EEEE"
-        android:textColor="@color/colorAccent"
-        tools:targetApi="jelly_bean_mr1" />
+        android:format12Hour="yyyy年MM月dd日HH:mm:ss EEEE" />
 
     <android.support.v7.widget.RecyclerView
         android:id="@+id/history_recycler_view"

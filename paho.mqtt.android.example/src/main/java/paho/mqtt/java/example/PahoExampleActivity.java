@@ -14,15 +14,13 @@
 package paho.mqtt.java.example;
 
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.Toolbar;
 import android.view.View;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.widget.Button;
+import android.widget.TextView;
+
 import org.eclipse.paho.android.service.MqttAndroidClient;
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
@@ -36,45 +34,75 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import java.util.ArrayList;
 
-public class PahoExampleActivity extends AppCompatActivity{
+/**
+ * @author juneyang
+ * MQTT测试主界面，测试连接、订阅等功能。
+ */
+public class PahoExampleActivity extends AppCompatActivity {
     private HistoryAdapter mAdapter;
 
     MqttAndroidClient mqttAndroidClient;
 
-    final String serverUri = "tcp://iot.eclipse.org:1883";
+    //    final String serverUri = "tcp://iot.eclipse.org:1883";
+    /**
+     * 更换为当前电脑联的IP地址
+     */
+    final String serverUri = "tcp://10.1.2.105:1883";
 
-    String clientId = "ExampleAndroidClient";
-    final String subscriptionTopic = "exampleAndroidTopic";
-    final String publishTopic = "exampleAndroidPublishTopic";
-    final String publishMessage = "Hello World!";
+    /**
+     * 客户端ID唯一，相同的会被逼下线,MQTT 也可能异常掉线
+     */
+    private String clientId = "Mi4-LTE";
+    private RecyclerView mRecyclerView;
+    /**
+     * 订阅的主题（消息事件）
+     */
+    final String subscriptionTopic = "chat/room/animals/client/";
+
+    /**
+     * 发布的主题（消息事件）
+     */
+    final String publishTopic = subscriptionTopic;
+
+    final String publishMessageRequest = "请求的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}";
+    final String publishMessageResponse = "响应的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}";
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_scrolling);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        Button fab = (Button) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                publishMessage();
+                publishMessage(false);
             }
         });
 
+        mRecyclerView = (RecyclerView) findViewById(R.id.history_recycler_view);
 
-        RecyclerView mRecyclerView = (RecyclerView) findViewById(R.id.history_recycler_view);
         RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(mLayoutManager);
 
         mAdapter = new HistoryAdapter(new ArrayList<String>());
         mRecyclerView.setAdapter(mAdapter);
 
+        findViewById(R.id.btnClear).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mAdapter.clear();
+            }
+        });
+
         clientId = clientId + System.currentTimeMillis();
 
+        ((TextView) findViewById(R.id.tv_ClientId)).setText("当前Client Id:" + clientId);
+
         mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), serverUri, clientId);
+
+        // 设置MQTT监听并且接受消息
         mqttAndroidClient.setCallback(new MqttCallbackExtended() {
             @Override
             public void connectComplete(boolean reconnect, String serverURI) {
@@ -88,11 +116,13 @@ public class PahoExampleActivity extends AppCompatActivity{
                 }
             }
 
+            //连接断开
             @Override
             public void connectionLost(Throwable cause) {
                 addToHistory("The Connection was lost.");
             }
 
+            //订阅的消息送达，推送notify
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 addToHistory("Incoming message: " + new String(message.getPayload()));
@@ -108,12 +138,6 @@ public class PahoExampleActivity extends AppCompatActivity{
         mqttConnectOptions.setAutomaticReconnect(true);
         mqttConnectOptions.setCleanSession(false);
 
-
-
-
-
-
-
         try {
             //addToHistory("Connecting to " + serverUri);
             mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
@@ -125,6 +149,7 @@ public class PahoExampleActivity extends AppCompatActivity{
                     disconnectedBufferOptions.setPersistBuffer(false);
                     disconnectedBufferOptions.setDeleteOldestMessages(false);
                     mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
+
                     subscribeToTopic();
                 }
 
@@ -133,42 +158,19 @@ public class PahoExampleActivity extends AppCompatActivity{
                     addToHistory("Failed to connect to: " + serverUri);
                 }
             });
-
-
-        } catch (MqttException ex){
+        } catch (MqttException ex) {
             ex.printStackTrace();
         }
-
     }
 
-    private void addToHistory(String mainText){
+    private void addToHistory(String mainText) {
         System.out.println("LOG: " + mainText);
         mAdapter.add(mainText);
-        Snackbar.make(findViewById(android.R.id.content), mainText, Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show();
-
+        //自动滚动
+        mRecyclerView.smoothScrollToPosition(mAdapter.getItemCount());
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    public void subscribeToTopic(){
+    public void subscribeToTopic() {
         try {
             mqttAndroidClient.subscribe(subscriptionTopic, 0, null, new IMqttActionListener() {
                 @Override
@@ -188,23 +190,31 @@ public class PahoExampleActivity extends AppCompatActivity{
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     // message Arrived!
                     System.out.println("Message: " + topic + " : " + new String(message.getPayload()));
+                    addToHistory("Message: " + topic + " : " + new String(message.getPayload()));
+
+                    //测试：收到消息后，马上再发回来 获取时间响应时间差
+                    publishMessage(true);
                 }
             });
-
-        } catch (MqttException ex){
+        } catch (MqttException ex) {
             System.err.println("Exception whilst subscribing");
             ex.printStackTrace();
         }
     }
 
-    public void publishMessage(){
-
+    public void publishMessage(Boolean isBack) {
         try {
             MqttMessage message = new MqttMessage();
-            message.setPayload(publishMessage.getBytes());
+            if (isBack) {
+                message.setPayload(publishMessageResponse.getBytes());
+            } else {
+                message.setPayload(publishMessageRequest.getBytes());
+            }
             mqttAndroidClient.publish(publishTopic, message);
-            addToHistory("Message Published");
-            if(!mqttAndroidClient.isConnected()){
+            addToHistory("发布消息");
+
+            //如果网络中断，消息进行缓存
+            if (!mqttAndroidClient.isConnected()) {
                 addToHistory(mqttAndroidClient.getBufferedMessageCount() + " messages in buffer.");
             }
         } catch (MqttException e) {
@@ -213,4 +223,8 @@ public class PahoExampleActivity extends AppCompatActivity{
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+    }
 }
