@@ -68,12 +68,14 @@ public class PahoExampleActivity extends AppCompatActivity {
     private long sendTime;
     private long responseTime;
 
-    /**
-     * 订阅的主题（消息事件）
+    /*
+     **
+     * 订阅的主题（消息事件） pubAndroidTopic
      */
-    final String subscriptionTopic = "pubAndroidTopic";
+
+    final String subscriptionTopic = "subAndroidTopic";
     /**
-     * 发布的主题（消息事件）
+     * 发布的主题（消息事件） subAndroidTopic
      */
     final String publishTopic = "pubAndroidTopic";
 
@@ -85,13 +87,16 @@ public class PahoExampleActivity extends AppCompatActivity {
 
     private MyHandler handler = new MyHandler(this);
 
-    private static final int MAX = 500;
+    private static final int MAX = 2;
     private Boolean isBack = false;
 
     /**
      * 测试请求的次数
      */
     private int sendCount = 0;
+
+    private long time1;
+    private long time2;
 
     /**
      * 测试响应的次数
@@ -162,8 +167,8 @@ public class PahoExampleActivity extends AppCompatActivity {
                 }
                 //并发测试
                 for (int i = 0; i < MAX; i++) {
-                    handler.sendEmptyMessage(MSG_SEND);
                 }
+                handler.sendEmptyMessage(MSG_SEND);
             }
         });
 
@@ -215,10 +220,10 @@ public class PahoExampleActivity extends AppCompatActivity {
                 addToHistory("The Connection was lost,cause:" + cause.toString());
             }
 
-            //订阅的消息送达，推送notify
+            //订阅的消息送达，推送notify TODO:
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                addToHistory("Incoming message: " + new String(message.getPayload()));
+                addToHistory("topic" + topic + ",Incoming message: " + new String(message.getPayload()));
             }
 
             @Override
@@ -271,6 +276,7 @@ public class PahoExampleActivity extends AppCompatActivity {
 
     public void subscribeToTopic() {
         try {
+            //订阅
             mqttAndroidClient.subscribe(subscriptionTopic, 0, null, new IMqttActionListener() {
                 @Override
                 public void onSuccess(IMqttToken asyncActionToken) {
@@ -291,14 +297,21 @@ public class PahoExampleActivity extends AppCompatActivity {
                     System.out.println("Message--: " + topic + " : " + new String(message.getPayload()));
                     handler.sendEmptyMessage(MSG_RESPONSE);
                     Log.d(TAG, "stop: 已到最大的次数");
+
                     if (!isBack) {
                         isBack = true;
                         addToHistory("第一次收到Message: " + topic + " : " + new String(message.getPayload()));
+                        time1 = System.currentTimeMillis();
+                        //响应之后发消息一次
+                        publishMessage(true);
                     } else {
-                        addToHistory("收到消息后响应: " + topic + " : " + new String(message.getPayload()));
+                        time2 = System.currentTimeMillis();
+                        addToHistory("收到消息后响应: " + topic + " : " + new String(message.getPayload()) + "时间差：" + (time2 - time1));
                     }
                 }
             });
+
+
         } catch (MqttException ex) {
             System.err.println("Exception whilst subscribing");
             ex.printStackTrace();
@@ -333,5 +346,16 @@ public class PahoExampleActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
+
+    @Override
+    public void onDestroy() {
+        try {
+            mqttAndroidClient.disconnect(); //断开连接
+        } catch (MqttException e) {
+            e.printStackTrace();
+        }
+        super.onDestroy();
+    }
+
     //TODO:计算500次的响应时间
 }
