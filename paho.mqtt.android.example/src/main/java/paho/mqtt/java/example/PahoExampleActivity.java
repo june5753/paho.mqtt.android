@@ -14,12 +14,16 @@
 package paho.mqtt.java.example;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.eclipse.paho.android.service.MqttAndroidClient;
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
@@ -32,13 +36,17 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+
+import paho.mqtt.java.example.utils.TimeUtils;
 
 /**
  * @author juneyang
  * MQTT测试主界面，测试连接、订阅等功能。
  */
 public class PahoExampleActivity extends AppCompatActivity {
+    private static final String TAG = "PahoExampleActivity";
     private HistoryAdapter mAdapter;
 
     MqttAndroidClient mqttAndroidClient;
@@ -54,34 +62,119 @@ public class PahoExampleActivity extends AppCompatActivity {
      */
     private String clientId = "Mi4-LTE";
     private RecyclerView mRecyclerView;
+    private TextView tvSendCount;
+    private TextView tvResponseCount;
+
+    private long sendTime;
+    private long responseTime;
+
     /**
      * 订阅的主题（消息事件）
      */
-    final String subscriptionTopic = "chat/room/animals/client/";
-
+    final String subscriptionTopic = "pubAndroidTopic";
     /**
      * 发布的主题（消息事件）
      */
-    final String publishTopic = subscriptionTopic;
+    final String publishTopic = "pubAndroidTopic";
 
-    final String publishMessageRequest = "请求的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}";
-    final String publishMessageResponse = "响应的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}";
+    final String publishMessageRequest = "请求的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}" + TimeUtils.formatTime(System.currentTimeMillis());
+    final String publishMessageResponse = "响应的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}" + TimeUtils.formatTime(System.currentTimeMillis());
 
+    private static final int MSG_SEND = 737;
+    private static final int MSG_RESPONSE = 738;
+    private static final int MSG_SEND_UI = 739;
+    private static final int MSG_RESPONSE_UI = 740;
+
+    private MyHandler handler = new MyHandler(this);
+
+    private static final int MAX = 10;
+    private Boolean isBack = false;
+
+    /**
+     * 测试请求的次数
+     */
+    private int sendCount = 0;
+
+    /**
+     * 测试响应的次数
+     */
+    private int responseCount = 0;
+
+    //Handler静态内部类
+    private class MyHandler extends Handler {
+        //弱引用
+        WeakReference<PahoExampleActivity> weakReference;
+
+        public MyHandler(PahoExampleActivity activity) {
+            weakReference = new WeakReference<>(activity);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            PahoExampleActivity activity = weakReference.get();
+            if (activity != null) {
+                switch (msg.what) {
+                    case MSG_SEND:
+                        if (sendCount == MAX) {
+                            return;
+                        }
+                        //发送
+                        sendCount++;
+                        activity.publishMessage(false);
+                        activity.tvSendCount.setText("当前请求次数:" + sendCount);
+                        break;
+
+                    case MSG_RESPONSE:
+                        //响应后再次发送
+                        if (responseCount == MAX) {
+                            return;
+                        }
+                        responseCount++;
+                        activity.publishMessage(true);
+                        activity.tvResponseCount.setText("当前响应次数:" + responseCount);
+                        break;
+                    default:
+                        break;
+                }
+
+                activity.mRecyclerView.scrollToPosition(activity.mAdapter.getItemCount());
+            }
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_scrolling);
-
         Button fab = (Button) findViewById(R.id.fab);
+
+        //发送
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                publishMessage(false);
+                isBack = false;
+                sendCount = 0;
+                responseCount = 0;
+
+                tvSendCount.setText("当前请求次数:" + sendCount);
+                tvResponseCount.setText("当前响应次数:" + responseCount);
+
+                if (!mqttAndroidClient.isConnected()) {
+                    Toast.makeText(PahoExampleActivity.this, "连接断开", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                //并发测试
+                for (int i = 0; i < MAX; i++) {
+                    handler.sendEmptyMessage(MSG_SEND);
+                }
             }
         });
 
         mRecyclerView = (RecyclerView) findViewById(R.id.history_recycler_view);
+
+        tvSendCount = (TextView) findViewById(R.id.tvCount);
+
+        tvResponseCount = (TextView) findViewById(R.id.tvRespond);
 
         RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(mLayoutManager);
@@ -92,6 +185,9 @@ public class PahoExampleActivity extends AppCompatActivity {
         findViewById(R.id.btnClear).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                isBack = false;
+                sendCount = 0;
+                responseCount = 0;
                 mAdapter.clear();
             }
         });
@@ -119,7 +215,7 @@ public class PahoExampleActivity extends AppCompatActivity {
             //连接断开
             @Override
             public void connectionLost(Throwable cause) {
-                addToHistory("The Connection was lost.");
+                addToHistory("The Connection was lost,cause:" + cause.toString());
             }
 
             //订阅的消息送达，推送notify
@@ -135,6 +231,8 @@ public class PahoExampleActivity extends AppCompatActivity {
         });
 
         MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
+
+        //设置断开后重新连接
         mqttConnectOptions.setAutomaticReconnect(true);
         mqttConnectOptions.setCleanSession(false);
 
@@ -163,11 +261,15 @@ public class PahoExampleActivity extends AppCompatActivity {
         }
     }
 
-    private void addToHistory(String mainText) {
+    private void addToHistory(final String mainText) {
         System.out.println("LOG: " + mainText);
-        mAdapter.add(mainText);
-        //自动滚动
-        mRecyclerView.smoothScrollToPosition(mAdapter.getItemCount());
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                mAdapter.add(mainText);
+            }
+        });
     }
 
     public void subscribeToTopic() {
@@ -184,16 +286,19 @@ public class PahoExampleActivity extends AppCompatActivity {
                 }
             });
 
-            // THIS DOES NOT WORK!
+            //收到消息
             mqttAndroidClient.subscribe(subscriptionTopic, 0, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     // message Arrived!
-                    System.out.println("Message: " + topic + " : " + new String(message.getPayload()));
-                    addToHistory("Message: " + topic + " : " + new String(message.getPayload()));
-
-                    //测试：收到消息后，马上再发回来 获取时间响应时间差
-                    publishMessage(true);
+                    System.out.println("Message--: " + topic + " : " + new String(message.getPayload()));
+                    handler.sendEmptyMessage(MSG_RESPONSE);
+                    Log.d(TAG, "stop: 已到最大的次数");
+                    if (!isBack) {
+                        addToHistory("第一次收到Message: " + topic + " : " + new String(message.getPayload()));
+                    } else {
+                        addToHistory("收到消息后响应: " + topic + " : " + new String(message.getPayload()) + "时间差：" + TimeUtils.formatTime(responseTime - sendTime));
+                    }
                 }
             });
         } catch (MqttException ex) {
@@ -207,11 +312,19 @@ public class PahoExampleActivity extends AppCompatActivity {
             MqttMessage message = new MqttMessage();
             if (isBack) {
                 message.setPayload(publishMessageResponse.getBytes());
+                sendTime = System.currentTimeMillis();
+                addToHistory("响应消息" + TimeUtils.formatTime(sendTime));
             } else {
+                responseTime = System.currentTimeMillis();
                 message.setPayload(publishMessageRequest.getBytes());
+                addToHistory("发布消息:" + TimeUtils.formatTime(responseTime));
+            }
+
+            if (responseCount == MAX || sendCount == MAX) {
+                Log.d(TAG, "stop: 已到最大的次数");
+                return;
             }
             mqttAndroidClient.publish(publishTopic, message);
-            addToHistory("发布消息");
 
             //如果网络中断，消息进行缓存
             if (!mqttAndroidClient.isConnected()) {
@@ -222,9 +335,5 @@ public class PahoExampleActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-    }
+    //TODO:计算500次的响应时间
 }

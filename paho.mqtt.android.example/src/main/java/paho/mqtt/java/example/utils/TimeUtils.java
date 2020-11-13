@@ -12,8 +12,8 @@ import java.util.Date;
  */
 public class TimeUtils {
 
-    public static String formatTime() {
-        Date nowTime = new Date(System.currentTimeMillis());
+    public static String formatTime(long time) {
+        Date nowTime = new Date(time);
         @SuppressLint("SimpleDateFormat") SimpleDateFormat sFormat = new SimpleDateFormat("HH:mm:ss:sss");
         return sFormat.format(nowTime) + " ";
     }

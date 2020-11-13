@@ -32,6 +32,22 @@
         android:textColor="@color/colorAccent"
         tools:targetApi="jelly_bean_mr1" />
 
+    <TextView
+        android:id="@+id/tvCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:textColor="@color/colorAccent"
+        android:text="请求次数" />
+
+    <TextView
+        android:id="@+id/tvRespond"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:textColor="@color/colorAccent"
+        android:text="响应次数" />
+
     <android.support.v7.widget.RecyclerView
         android:id="@+id/history_recycler_view"
         android:layout_width="match_parent"

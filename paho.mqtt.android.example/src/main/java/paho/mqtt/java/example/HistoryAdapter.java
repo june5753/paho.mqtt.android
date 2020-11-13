@@ -62,7 +62,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     @SuppressLint("SetTextI18n")
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
-        holder.mTextView.setText(TimeUtils.formatTime() + history.get(position));
+        holder.mTextView.setText(TimeUtils.formatTime(System.currentTimeMillis()) + history.get(position));
     }
 
     @Override
