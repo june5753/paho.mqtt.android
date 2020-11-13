@@ -82,12 +82,10 @@ public class PahoExampleActivity extends AppCompatActivity {
 
     private static final int MSG_SEND = 737;
     private static final int MSG_RESPONSE = 738;
-    private static final int MSG_SEND_UI = 739;
-    private static final int MSG_RESPONSE_UI = 740;
 
     private MyHandler handler = new MyHandler(this);
 
-    private static final int MAX = 10;
+    private static final int MAX = 500;
     private Boolean isBack = false;
 
     /**
@@ -136,7 +134,6 @@ public class PahoExampleActivity extends AppCompatActivity {
                     default:
                         break;
                 }
-
                 activity.mRecyclerView.scrollToPosition(activity.mAdapter.getItemCount());
             }
         }
@@ -295,9 +292,10 @@ public class PahoExampleActivity extends AppCompatActivity {
                     handler.sendEmptyMessage(MSG_RESPONSE);
                     Log.d(TAG, "stop: 已到最大的次数");
                     if (!isBack) {
+                        isBack = true;
                         addToHistory("第一次收到Message: " + topic + " : " + new String(message.getPayload()));
                     } else {
-                        addToHistory("收到消息后响应: " + topic + " : " + new String(message.getPayload()) + "时间差：" + TimeUtils.formatTime(responseTime - sendTime));
+                        addToHistory("收到消息后响应: " + topic + " : " + new String(message.getPayload()));
                     }
                 }
             });
