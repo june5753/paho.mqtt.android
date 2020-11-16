@@ -56,6 +56,14 @@
         android:textColor="@color/colorAccent"
         android:text="响应次数" />
 
+    <TextView
+        android:id="@+id/tvTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:text="平均耗时："
+        android:textColor="@color/colorAccent" />
+
     <android.support.v7.widget.RecyclerView
         android:id="@+id/history_recycler_view"
         android:layout_width="match_parent"

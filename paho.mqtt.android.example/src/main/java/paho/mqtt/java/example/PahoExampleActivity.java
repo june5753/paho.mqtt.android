@@ -65,6 +65,7 @@ public class PahoExampleActivity extends AppCompatActivity {
     private RecyclerView mRecyclerView;
     private TextView tvSendCount;
     private TextView tvResponseCount;
+    private TextView tvTime;
 
     private long sendTime;
     private long responseTime;
@@ -75,22 +76,23 @@ public class PahoExampleActivity extends AppCompatActivity {
      * 订阅的主题（消息事件） pubAndroidTopic
      */
 
-    final String subscriptionTopic = "subAndroidTopic";
+    final String subscriptionTopic = "pubAndroidTopic";
     /**
      * 发布的主题（消息事件） subAndroidTopic pubAndroidTopic
      */
-    final String publishTopic = "pubAndroidTopic";
+    final String publishTopic = "subAndroidTopic";
 
     final String publishMessageRequest = "请求的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}" + TimeUtils.formatTime(System.currentTimeMillis());
     final String publishMessageResponse = "响应的消息：request：{  \"action\":\"test\", \"num\":发送序号 ,\"time\": 设备A的发送时间戳, \"randomStr\":  \"随机字符串，要求长度60\"}" + TimeUtils.formatTime(System.currentTimeMillis());
 
-    private static final int MSG_SEND = 737;
-    private static final int MSG_RESPONSE = 738;
+    private static final int MSG_SEND = 1;
+    private static final int MSG_RESPONSE = 2;
+
+    private static final int MSG_TIME = 3;
 
     private final MyHandler handler = new MyHandler(this);
 
     private static final int MAX = 500;
-    private Boolean isBack = false;
 
     /**
      * 测试请求的次数
@@ -102,6 +104,7 @@ public class PahoExampleActivity extends AppCompatActivity {
     /**
      * 计算平均时间
      */
+    private long totalAverTime = 0;
     private long averTime = 0;
 
     /**
@@ -119,6 +122,7 @@ public class PahoExampleActivity extends AppCompatActivity {
             weakReference = new WeakReference<>(activity);
         }
 
+        @SuppressLint("SetTextI18n")
         @Override
         public void handleMessage(Message msg) {
             PahoExampleActivity activity = weakReference.get();
@@ -140,9 +144,14 @@ public class PahoExampleActivity extends AppCompatActivity {
                             return;
                         }
                         responseCount++;
-//                        activity.publishMessage(true);
                         activity.tvResponseCount.setText("当前响应次数:" + responseCount);
                         break;
+
+                    case MSG_TIME:
+                        //显示耗时时间
+                        activity.tvTime.setText(MAX + "次平均耗时:" + averTime);
+                        break;
+
                     default:
                         break;
                 }
@@ -161,11 +170,10 @@ public class PahoExampleActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                isBack = false;
                 sendCount = 0;
                 responseCount = 0;
                 countTime = 0;
-                averTime = 0;
+                totalAverTime = 0;
 
                 tvSendCount.setText("当前请求次数:" + sendCount);
                 tvResponseCount.setText("当前响应次数:" + responseCount);
@@ -184,6 +192,8 @@ public class PahoExampleActivity extends AppCompatActivity {
 
         tvResponseCount = (TextView) findViewById(R.id.tvRespond);
 
+        tvTime = (TextView) findViewById(R.id.tvTime);
+
         RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(mLayoutManager);
 
@@ -193,7 +203,6 @@ public class PahoExampleActivity extends AppCompatActivity {
         findViewById(R.id.btnClear).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                isBack = false;
                 sendCount = 0;
                 responseCount = 0;
                 mAdapter.clear();
@@ -311,15 +320,17 @@ public class PahoExampleActivity extends AppCompatActivity {
                         time1 = System.currentTimeMillis();
                     } else {
                         time2 = System.currentTimeMillis();
-                        averTime += time2 - time1;
+                        totalAverTime += time2 - time1;
                         addToHistory("收到Message2响应: " + topic + " : " + new String(message.getPayload()));
                         Log.e(TAG, "countTime,时间差：" + (time2 - time1));
-                        Log.d(TAG, "countTime,averTime:" + averTime);
+                        Log.d(TAG, "countTime,averTime:" + totalAverTime);
 
                     }
                     if (countTime == MAX) {
-                        long time = averTime / (MAX / 2);
-                        Log.e(TAG, "countTime,平均时间差：" + time);
+                        averTime = totalAverTime / (MAX / 2);
+                        Log.e(TAG, "countTime,平均时间差：" + averTime);
+                        handler.sendEmptyMessage(MSG_TIME);
+                        countTime = 0;
                         return;
                     }
                     //响应之后发消息一次
