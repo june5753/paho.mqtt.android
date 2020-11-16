@@ -23,6 +23,12 @@
         android:layout_height="wrap_content"
         android:text="清空日志" />
 
+    <Button
+        android:id="@+id/btnConnect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="测试重连接时间" />
+
     <TextClock
         android:id="@+id/tvClock"
         android:layout_width="match_parent"

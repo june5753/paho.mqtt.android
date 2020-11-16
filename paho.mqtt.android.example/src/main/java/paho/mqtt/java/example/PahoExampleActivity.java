@@ -13,6 +13,7 @@
  */
 package paho.mqtt.java.example;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -68,6 +69,7 @@ public class PahoExampleActivity extends AppCompatActivity {
     private long sendTime;
     private long responseTime;
 
+    private int countTime = 0;
     /*
      **
      * 订阅的主题（消息事件） pubAndroidTopic
@@ -75,7 +77,7 @@ public class PahoExampleActivity extends AppCompatActivity {
 
     final String subscriptionTopic = "subAndroidTopic";
     /**
-     * 发布的主题（消息事件） subAndroidTopic
+     * 发布的主题（消息事件） subAndroidTopic pubAndroidTopic
      */
     final String publishTopic = "pubAndroidTopic";
 
@@ -85,9 +87,9 @@ public class PahoExampleActivity extends AppCompatActivity {
     private static final int MSG_SEND = 737;
     private static final int MSG_RESPONSE = 738;
 
-    private MyHandler handler = new MyHandler(this);
+    private final MyHandler handler = new MyHandler(this);
 
-    private static final int MAX = 2;
+    private static final int MAX = 500;
     private Boolean isBack = false;
 
     /**
@@ -97,6 +99,10 @@ public class PahoExampleActivity extends AppCompatActivity {
 
     private long time1;
     private long time2;
+    /**
+     * 计算平均时间
+     */
+    private long averTime = 0;
 
     /**
      * 测试响应的次数
@@ -104,6 +110,7 @@ public class PahoExampleActivity extends AppCompatActivity {
     private int responseCount = 0;
 
     //Handler静态内部类
+    @SuppressLint("HandlerLeak")
     private class MyHandler extends Handler {
         //弱引用
         WeakReference<PahoExampleActivity> weakReference;
@@ -133,7 +140,7 @@ public class PahoExampleActivity extends AppCompatActivity {
                             return;
                         }
                         responseCount++;
-                        activity.publishMessage(true);
+//                        activity.publishMessage(true);
                         activity.tvResponseCount.setText("当前响应次数:" + responseCount);
                         break;
                     default:
@@ -157,6 +164,8 @@ public class PahoExampleActivity extends AppCompatActivity {
                 isBack = false;
                 sendCount = 0;
                 responseCount = 0;
+                countTime = 0;
+                averTime = 0;
 
                 tvSendCount.setText("当前请求次数:" + sendCount);
                 tvResponseCount.setText("当前响应次数:" + responseCount);
@@ -164,9 +173,6 @@ public class PahoExampleActivity extends AppCompatActivity {
                 if (!mqttAndroidClient.isConnected()) {
                     Toast.makeText(PahoExampleActivity.this, "连接断开", Toast.LENGTH_SHORT).show();
                     return;
-                }
-                //并发测试
-                for (int i = 0; i < MAX; i++) {
                 }
                 handler.sendEmptyMessage(MSG_SEND);
             }
@@ -296,18 +302,28 @@ public class PahoExampleActivity extends AppCompatActivity {
                     // message Arrived!
                     System.out.println("Message--: " + topic + " : " + new String(message.getPayload()));
                     handler.sendEmptyMessage(MSG_RESPONSE);
-                    Log.d(TAG, "stop: 已到最大的次数");
+                    //500次 时间差
+                    countTime++;
+                    Log.e(TAG, "countTime: " + countTime);
 
-                    if (!isBack) {
-                        isBack = true;
-                        addToHistory("第一次收到Message: " + topic + " : " + new String(message.getPayload()));
+                    if (countTime % 2 == 1) {
+                        addToHistory("收到Message1: " + topic + " : " + new String(message.getPayload()));
                         time1 = System.currentTimeMillis();
-                        //响应之后发消息一次
-                        publishMessage(true);
                     } else {
                         time2 = System.currentTimeMillis();
-                        addToHistory("收到消息后响应: " + topic + " : " + new String(message.getPayload()) + "时间差：" + (time2 - time1));
+                        averTime += time2 - time1;
+                        addToHistory("收到Message2响应: " + topic + " : " + new String(message.getPayload()));
+                        Log.e(TAG, "countTime,时间差：" + (time2 - time1));
+                        Log.d(TAG, "countTime,averTime:" + averTime);
+
                     }
+                    if (countTime == MAX) {
+                        long time = averTime / (MAX / 2);
+                        Log.e(TAG, "countTime,平均时间差：" + time);
+                        return;
+                    }
+                    //响应之后发消息一次
+                    publishMessage(true);
                 }
             });
 
@@ -356,6 +372,4 @@ public class PahoExampleActivity extends AppCompatActivity {
         }
         super.onDestroy();
     }
-
-    //TODO:计算500次的响应时间
 }
